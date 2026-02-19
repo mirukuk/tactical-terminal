@@ -2,7 +2,7 @@
 Tactical Terminal Trading API - Enhanced with Market Breadth & CNN Fear & Greed
 """
 
-from flask import Flask, jsonify, Response
+from flask import Flask, jsonify, Response, send_from_directory
 from flask_cors import CORS
 import yfinance as yf
 import pandas as pd
@@ -12,6 +12,7 @@ import requests
 import re
 import time
 import json
+import os
 
 def convert_to_native(obj):
     """Convert numpy types to native Python types for JSON serialization"""
@@ -45,7 +46,7 @@ def json_response(data):
     """Create a JSON response with numpy type support"""
     return Response(json.dumps(convert_to_native(data), cls=NumpyEncoder), mimetype='application/json')
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='../dist', static_url_path='')
 CORS(app)
 
 # Cache
@@ -1187,8 +1188,18 @@ def health():
         'last_update': _data_cache['last_update']
     })
 
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    static_folder = os.path.join(os.path.dirname(__file__), '..', 'dist')
+    if path != "" and os.path.exists(os.path.join(static_folder, path)):
+        return send_from_directory(static_folder, path)
+    else:
+        return send_from_directory(static_folder, 'index.html')
+
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     print("Initializing Tactical Terminal API...")
     update_all_data()
-    print(f"Starting API server on http://localhost:5000")
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    print(f"Starting server on port {port}")
+    app.run(host='0.0.0.0', port=port, debug=True, use_reloader=False)

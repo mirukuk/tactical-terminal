@@ -1,79 +1,61 @@
 #!/usr/bin/env python3
 """
-Tactical Terminal - Startup Script
+Tactical Terminal - Replit Startup Script
 """
 
 import subprocess
 import sys
 import os
 
-def check_and_install():
-    """Check and install dependencies"""
-    print("="*60)
-    print("Checking Python dependencies...")
-    print("="*60)
-    
-    deps = ['flask', 'flask_cors', 'yfinance', 'pandas', 'numpy']
-    for dep in deps:
-        try:
-            __import__(dep)
-            print(f"  {dep} OK")
-        except ImportError:
-            print(f"  Installing {dep}...")
-            subprocess.run([sys.executable, '-m', 'pip', 'install', dep], check=True)
-    
-    print("\n" + "="*60)
-    print("Checking npm dependencies...")
-    print("="*60)
-    
-    if not os.path.exists('node_modules'):
-        print("  Running npm install...")
-        subprocess.run(['npm', 'install'], check=True)
-    else:
-        print("  node_modules OK")
+def run_command(cmd, cwd=None):
+    """Run a command and handle errors"""
+    print(f"Running: {cmd}")
+    result = subprocess.run(cmd, shell=True, cwd=cwd)
+    if result.returncode != 0:
+        print(f"Command failed with code {result.returncode}")
+        return False
+    return True
 
 def main():
-    check_and_install()
+    print("=" * 60)
+    print("Tactical Terminal - Starting on Replit")
+    print("=" * 60)
     
-    print("\n" + "="*60)
-    print("Starting servers...")
-    print("="*60)
-    print("API: http://localhost:5000")
-    print("App: http://localhost:5173")
-    print("="*60 + "\n")
+    # Get the directory where this script is located
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(script_dir)
     
-    # Start API server
-    api_process = subprocess.Popen(
-        [sys.executable, 'api/trading_api.py'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True
-    )
+    # Install npm dependencies if needed
+    if not os.path.exists('node_modules'):
+        print("\n[1/3] Installing npm dependencies...")
+        if not run_command("npm install"):
+            sys.exit(1)
+    else:
+        print("\n[1/3] npm dependencies already installed")
     
-    # Start frontend
-    frontend_process = subprocess.Popen(
-        'npm run dev',
-        shell=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True
-    )
+    # Build frontend
+    print("\n[2/3] Building frontend...")
+    if not run_command("npm run build"):
+        sys.exit(1)
     
-    try:
-        while True:
-            # Check if processes are still running
-            if api_process.poll() is not None:
-                print("API server stopped")
-                frontend_process.terminate()
-                break
-            if frontend_process.poll() is not None:
-                print("Frontend stopped")
-                api_process.terminate()
-                break
-    except KeyboardInterrupt:
-        print("\nShutting down...")
-        api_process.terminate()
-        frontend_process.terminate()
+    # Start Flask server
+    print("\n[3/3] Starting server...")
+    print("=" * 60)
+    
+    # Use gunicorn on Replit for production, flask dev locally
+    port = os.environ.get('PORT', '5000')
+    
+    if os.environ.get('REPL_ID'):
+        # On Replit - use gunicorn
+        subprocess.run([
+            sys.executable, '-m', 'gunicorn', 
+            '--bind', f'0.0.0.0:{port}',
+            '--workers', '1',
+            'api.trading_api:app'
+        ])
+    else:
+        # Local development
+        subprocess.run([sys.executable, 'api/trading_api.py'])
 
 if __name__ == '__main__':
     main()

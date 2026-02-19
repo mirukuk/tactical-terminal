@@ -1,0 +1,9 @@
+run = "python start.py"
+entrypoint = "api/trading_api.py"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-c", "npm install && npm run build && python api/trading_api.py"]
+deploymentTarget = "cloud"
