@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: tactical-terminal-api
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn api.trading_api:app --bind 0.0.0.0:$PORT --workers 2
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+    healthCheckPath: /health
+    autoDeploy: true
+
+  - type: web
+    name: tactical-terminal-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          name: tactical-terminal-api
+          type: web
+          property: url
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
